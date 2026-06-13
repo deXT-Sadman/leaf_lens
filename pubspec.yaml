@@ -1,0 +1,19 @@
+name: leaf_lens
+description: A plant identification app using AI
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  image_picker: ^1.1.2
+  google_fonts: ^6.2.1
+  http: ^1.2.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
