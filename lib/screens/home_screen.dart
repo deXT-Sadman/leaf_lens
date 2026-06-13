@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/plant_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,6 +13,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   File? _selectedImage; // ইউজার যে ছবি বেছেছে
+  bool _isLoading = false; // API call চলছে কিনা
   final ImagePicker _picker = ImagePicker();
 
   // Camera থেকে ছবি তোলা
@@ -37,6 +39,47 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _selectedImage = File(image.path);
       });
+    }
+  }
+
+  Future<void> _identifyPlant() async {
+    if (_selectedImage == null) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await PlantService.identifyPlant(_selectedImage!);
+
+      if (!mounted) return;
+
+      if (result.isPlant) {
+        // সফল — result দেখাও (Day 3 তে আলাদা screen হবে)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ ${result.plantName} চিহ্নিত হয়েছে!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        // Plant পাওয়া যায়নি
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ ${result.errorMessage}'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⚠️ Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -142,19 +185,21 @@ class _HomeScreenState extends State<HomeScreen> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton.icon(
-                onPressed: _selectedImage == null
+                onPressed: (_selectedImage == null || _isLoading)
                     ? null
-                    : () {
-                        // TODO: Day 2 তে AI call যোগ হবে
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('AI feature coming soon! 🌱'),
-                          ),
-                        );
-                      },
-                icon: const Icon(Icons.search),
+                    : _identifyPlant,
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.search),
                 label: Text(
-                  'গাছ চিহ্নিত করুন',
+                  _isLoading ? 'চিহ্নিত হচ্ছে...' : 'গাছ চিহ্নিত করুন',
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
