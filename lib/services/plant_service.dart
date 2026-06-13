@@ -1,45 +1,43 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:http/http.dart' as http;
 
 class PlantService {
-  // Claude API endpoint
-  static const String _apiUrl = 'https://api.anthropic.com/v1/messages';
+  static const String _apiUrl =
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
-  // .env থেকে API key নেওয়া
-  static String get _apiKey => dotenv.env['CLAUDE_API_KEY'] ?? '';
+  static String get _apiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
 
-  /// ছবি নিয়ে Claude API তে পাঠাবে, result return করবে
   static Future<PlantResult> identifyPlant(File imageFile) async {
-    // Step 1: Image কে Base64 এ convert করো
-    final bytes = await imageFile.readAsBytes();
-    final base64Image = base64Encode(bytes);
+    // Image compress করো — size ছোট হলে 429 error কম আসবে
+    final compressedBytes = await FlutterImageCompress.compressWithFile(
+      imageFile.path,
+      quality: 60,
+      minWidth: 800,
+      minHeight: 800,
+    );
 
-    // Step 2: Image এর type বের করো
+    if (compressedBytes == null) {
+      throw Exception('ছবি compress করা যায়নি');
+    }
+
+    final base64Image = base64Encode(compressedBytes);
     final mimeType = _getMimeType(imageFile.path);
 
-    // Step 3: API request body তৈরি করো
     final body = jsonEncode({
-      "model": "claude-opus-4-6",
-      "max_tokens": 1024,
-      "messages": [
+      "contents": [
         {
-          "role": "user",
-          "content": [
+          "parts": [
             {
-              // Image part
-              "type": "image",
-              "source": {
-                "type": "base64",
-                "media_type": mimeType,
+              "inline_data": {
+                "mime_type": mimeType,
                 "data": base64Image,
-              },
+              }
             },
             {
-              // Text instruction part
-              "type": "text",
-              "text": """You are a plant identification expert. 
+              "text": """You are a plant identification expert.
 Analyze this image and identify the plant.
 
 Respond ONLY in this exact JSON format, nothing else:
@@ -58,26 +56,22 @@ If the image does NOT contain a plant, respond with:
   "message": "No plant detected in the image"
 }"""
             }
-          ],
+          ]
         }
-      ],
+      ]
     });
 
-    // Step 4: HTTP POST request পাঠাও
     try {
       final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': _apiKey,
-          'anthropic-version': '2023-06-01',
-        },
+        Uri.parse('$_apiUrl?key=$_apiKey'),
+        headers: {'Content-Type': 'application/json'},
         body: body,
       );
 
-      // Step 5: Response check করো
       if (response.statusCode == 200) {
         return _parseResponse(response.body);
+      } else if (response.statusCode == 429) {
+        throw Exception('অনেক বেশি request হয়েছে, একটু পরে try করুন');
       } else {
         throw Exception('API Error: ${response.statusCode}');
       }
@@ -88,15 +82,17 @@ If the image does NOT contain a plant, respond with:
     }
   }
 
-  /// Claude এর response থেকে PlantResult বানাও
   static PlantResult _parseResponse(String responseBody) {
     final decoded = jsonDecode(responseBody);
 
-    // Claude এর actual text content বের করো
-    final content = decoded['content'][0]['text'] as String;
+    final content =
+        decoded['candidates'][0]['content']['parts'][0]['text'] as String;
 
-    // JSON parse করো
-    final plantData = jsonDecode(content);
+    // Gemini কখনো markdown backticks দেয়, সেটা remove করো
+    final cleanJson =
+        content.replaceAll('```json', '').replaceAll('```', '').trim();
+
+    final plantData = jsonDecode(cleanJson);
 
     if (plantData['is_plant'] == false) {
       return PlantResult.notAPlant(
@@ -114,7 +110,6 @@ If the image does NOT contain a plant, respond with:
     );
   }
 
-  /// File extension থেকে MIME type বের করো
   static String _getMimeType(String path) {
     final ext = path.split('.').last.toLowerCase();
     switch (ext) {
@@ -131,7 +126,6 @@ If the image does NOT contain a plant, respond with:
   }
 }
 
-/// Plant identification এর result model
 class PlantResult {
   final String plantName;
   final String scientificName;
@@ -151,7 +145,6 @@ class PlantResult {
     this.errorMessage,
   });
 
-  /// Plant না পাওয়া গেলে এই constructor ব্যবহার হবে
   factory PlantResult.notAPlant(String message) {
     return PlantResult(
       plantName: '',
