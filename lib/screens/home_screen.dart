@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/plant_service.dart';
 import 'result_screen.dart';
+import 'not_plant_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -66,15 +67,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       } else {
-        // Plant পাওয়া যায়নি
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '❌ ${result.errorMessage}',
-              style: GoogleFonts.poppins(),
+        // Not Plant Screen এ navigate করো
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NotPlantScreen(
+              image: _selectedImage!,
+              message: result.errorMessage ?? 'ছবিতে কোনো গাছ পাওয়া যায়নি',
             ),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -83,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '⚠️ Error: ${e.toString()}',
+            '⚠️ ${e.toString()}',
             style: GoogleFonts.poppins(),
           ),
           backgroundColor: Colors.red,
@@ -91,7 +91,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
