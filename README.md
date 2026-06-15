@@ -1,16 +1,5 @@
 # 🌿 LeafLens — AI Plant Identifier
 
-<p align="center">
-  <img src="screenshots/splash.png" width="200"/>
-  <img src="screenshots/home1.png" width="200"/>
-  <img src="screenshots/select.png" width="200"/>
-  <img src="screenshots/home2.png" width="200"/>
-  <img src="screenshots/details.png" width="200"/>
-  <img src="screenshots/details2.png" width="200"/>
-  <img src="screenshots/details3.png" width="200"/>
-  <img src="screenshots/details4.png" width="200"/>
-</p>
-
 > An AI-powered Flutter app that identifies plants from photos instantly.
 > Just snap or upload a photo — LeafLens tells you everything about the plant!
 
