@@ -1,8 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/plant_service.dart';
+import 'result_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,15 +13,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  File? _selectedImage; // ইউজার যে ছবি বেছেছে
-  bool _isLoading = false; // API call চলছে কিনা
+  File? _selectedImage;
+  bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
 
   // Camera থেকে ছবি তোলা
   Future<void> _pickFromCamera() async {
     final XFile? photo = await _picker.pickImage(
       source: ImageSource.camera,
-      imageQuality: 85, // file size কমায়
+      imageQuality: 85,
     );
     if (photo != null) {
       setState(() {
@@ -42,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // AI দিয়ে plant চিহ্নিত করা
   Future<void> _identifyPlant() async {
     if (_selectedImage == null) return;
 
@@ -53,20 +55,26 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
 
       if (result.isPlant) {
-        // সফল — result দেখাও (Day 3 তে আলাদা screen হবে)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ ${result.plantName} চিহ্নিত হয়েছে!'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
+        // Result Screen এ navigate করো
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ResultScreen(
+              result: result,
+              image: _selectedImage!,
+            ),
           ),
         );
       } else {
         // Plant পাওয়া যায়নি
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ ${result.errorMessage}'),
+            content: Text(
+              '❌ ${result.errorMessage}',
+              style: GoogleFonts.poppins(),
+            ),
             backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -74,8 +82,12 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('⚠️ Error: ${e.toString()}'),
+          content: Text(
+            '⚠️ Error: ${e.toString()}',
+            style: GoogleFonts.poppins(),
+          ),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
         ),
       );
     } finally {
@@ -134,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F8E9), // হালকা সবুজ bg
+      backgroundColor: const Color(0xFFF1F8E9),
       appBar: AppBar(
         backgroundColor: const Color(0xFF2E7D32),
         title: Text(
@@ -162,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: double.infinity,
               height: 52,
               child: OutlinedButton.icon(
-                onPressed: _showImageSourceSheet,
+                onPressed: _isLoading ? null : _showImageSourceSheet,
                 icon: const Icon(Icons.add_photo_alternate_outlined),
                 label: Text(
                   _selectedImage == null ? 'ছবি আপলোড করুন' : 'আবার বেছে নিন',
@@ -170,7 +182,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF2E7D32),
-                  side: const BorderSide(color: Color(0xFF2E7D32), width: 2),
+                  side: const BorderSide(
+                    color: Color(0xFF2E7D32),
+                    width: 2,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -180,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 16),
 
-            // Identify Button (এখন disabled, Day 2 তে কাজ করবে)
+            // Identify Button
             SizedBox(
               width: double.infinity,
               height: 52,
