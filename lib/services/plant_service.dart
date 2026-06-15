@@ -6,12 +6,12 @@ import 'package:http/http.dart' as http;
 
 class PlantService {
   static const String _apiUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+      'https://api.groq.com/openai/v1/chat/completions';
 
-  static String get _apiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
+  static String get _apiKey => dotenv.env['GROQ_API_KEY'] ?? '';
 
   static Future<PlantResult> identifyPlant(File imageFile) async {
-    // Image compress করো — size ছোট হলে 429 error কম আসবে
+    // Image compress করো
     final compressedBytes = await FlutterImageCompress.compressWithFile(
       imageFile.path,
       quality: 60,
@@ -27,16 +27,19 @@ class PlantService {
     final mimeType = _getMimeType(imageFile.path);
 
     final body = jsonEncode({
-      "contents": [
+      "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "messages": [
         {
-          "parts": [
+          "role": "user",
+          "content": [
             {
-              "inline_data": {
-                "mime_type": mimeType,
-                "data": base64Image,
+              "type": "image_url",
+              "image_url": {
+                "url": "data:$mimeType;base64,$base64Image",
               }
             },
             {
+              "type": "text",
               "text": """You are a plant identification expert.
 Analyze this image and identify the plant.
 
@@ -58,20 +61,25 @@ If the image does NOT contain a plant, respond with:
             }
           ]
         }
-      ]
+      ],
+      "max_tokens": 1024,
+      "temperature": 0.1,
     });
 
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl?key=$_apiKey'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse(_apiUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_apiKey',
+        },
         body: body,
       );
 
       if (response.statusCode == 200) {
         return _parseResponse(response.body);
       } else if (response.statusCode == 429) {
-        throw Exception('অনেক বেশি request হয়েছে, একটু পরে try করুন');
+        throw Exception('একটু পরে আবার try করুন');
       } else {
         throw Exception('API Error: ${response.statusCode}');
       }
@@ -85,10 +93,9 @@ If the image does NOT contain a plant, respond with:
   static PlantResult _parseResponse(String responseBody) {
     final decoded = jsonDecode(responseBody);
 
-    final content =
-        decoded['candidates'][0]['content']['parts'][0]['text'] as String;
+    final content = decoded['choices'][0]['message']['content'] as String;
 
-    // Gemini কখনো markdown backticks দেয়, সেটা remove করো
+    // JSON clean করো
     final cleanJson =
         content.replaceAll('```json', '').replaceAll('```', '').trim();
 
