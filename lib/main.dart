@@ -23,7 +23,7 @@ class LeafLensApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const SplashScreen(), // ← change
+      home: const SplashScreen(),
     );
   }
 }
